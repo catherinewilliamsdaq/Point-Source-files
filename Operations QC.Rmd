@@ -1,0 +1,55 @@
+---
+title: "Operations QC"
+author: "Catherine Williams"
+date: "9/28/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+summary(cars)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+```{r}
+#This chunk identifies processes where throughput is reported, but not any hours.
+library(tidyverse)
+library(dplyr)
+#Read in process emissions file
+PE2020 <- read_csv("2020 process emissions.csv")
+#Select columns in PE2020, filtered out 0 thoughput and 0 actual hours
+opscomp <- PE2020 %>% select(`Facility Identifier`:`Facility Name`, `Emission Unit Identifier`:`SCC`, `Throughput`:`Throughput Unit of Measure: Description`, `Standard Start Time`:`Dec Operations (%)`) %>% filter(`Throughput` != "0" & `Actual Hours` == "0")
+```
+```{r}
+#This chunk identifies mobile equipment reporting throughput units in hours that do not match operation hours.
+#Select columns from process emissions, 
+opscompmob <- PE2020 %>% select(`Facility Identifier`:`Facility Name`, `Emission Unit Identifier`:`SCC`, `Throughput`:`Throughput Unit of Measure: Description`, `Standard Start Time`:`Dec Operations (%)`) %>% filter(`SCC` > 99999999) %>% filter(`Throughput Unit of Measure: Code` == "HR") %>% filter(`Throughput` != `Actual Hours`)
+```
+```{r}
+#This chunk identifies processes where the actual hours are greater than the difference between the start and stop times
+opscompday <- PE2020 %>% select(`Facility Identifier`:`Facility Name`, `Emission Unit Identifier`:`SCC`, `Throughput`:`Throughput Unit of Measure: Description`, `Standard Start Time`:`Dec Operations (%)`) %>% mutate(ops_hours = (`Standard Stop Time` - `Standard Start Time`)) 
+#Stopped here to discuss with Lexie any issues with having negative ops_hours
+```
+```{r}
+#This chunk identifies facilties that report any 0% in the monthly operations and also report 52 weeks per year.
+#selected columns, filtered where any monthly percentage column = 0
+opscompweek <- PE2020 %>% select(`Facility Identifier`:`Facility Name`, `Emission Unit Identifier`:`SCC`, `Throughput`:`Throughput Unit of Measure: Description`, `Standard Start Time`:`Dec Operations (%)`) %>% filter(across(ends_with("(%)")) == "0")
+```
