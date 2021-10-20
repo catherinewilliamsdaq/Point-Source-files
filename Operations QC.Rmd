@@ -52,4 +52,18 @@ opscompday <- PE2020 %>% select(`Facility Identifier`:`Facility Name`, `Emission
 #This chunk identifies facilties that report any 0% in the monthly operations and also report 52 weeks per year.
 #selected columns, filtered where any monthly percentage column = 0
 opscompweek <- PE2020 %>% select(`Facility Identifier`:`Facility Name`, `Emission Unit Identifier`:`SCC`, `Throughput`:`Throughput Unit of Measure: Description`, `Standard Start Time`:`Dec Operations (%)`) %>% filter(across(ends_with("(%)")) == "0")
+#select fewer columns and filter for non-zero average weeks/year
+opscompweek2 <- opscompweek %>% select(`Facility Identifier`:`Facility Name`, `Average Weeks/Year`, `Jan Operations (%)`:`Dec Operations (%)`) %>% filter(`Average Weeks/Year` != "0")
+#filter out monthly data that has > average weeks/year. For example, filter out any rows with one 0 month that have > 48 weeks, rows with nine 0 months that have > 12 weeks
+elevenmonths <- opscompweek2[apply(opscompweek2 == 0, 1, sum) == 1, ] %>% filter(`Average Weeks/Year` > "48") #47.7 weeks in 11 months
+tenmonths <- opscompweek2[apply(opscompweek2 == 0, 1, sum) == 2, ] %>% filter(`Average Weeks/Year` > "43") #43.4 weeks in 10 months                       
+ninemonths <- opscompweek2[apply(opscompweek2 == 0, 1, sum) == 3, ] %>% filter(`Average Weeks/Year` > "39") #39.1 weeks in 9 months
+eightmonths <- opscompweek2[apply(opscompweek2 == 0, 1, sum) == 4, ] %>% filter(`Average Weeks/Year` > "35") #34.7 weeks in 8 months
+sevenmonths <- opscompweek2[apply(opscompweek2 == 0, 1, sum) == 5, ] %>% filter(`Average Weeks/Year` > "30") #30.4 weeks in 7 months
+sixmonths <- opscompweek2[apply(opscompweek2 == 0, 1, sum) == 6, ] %>% filter(`Average Weeks/Year` > "26") #26.07 weeks in 6 months
+fivemonths <- opscompweek2[apply(opscompweek2 == 0, 1, sum) == 7, ] %>% filter(`Average Weeks/Year` > "22") #21.7 weeks in 5 months
+fourmonths <- opscompweek2[apply(opscompweek2 == 0, 1, sum) == 8, ] %>% filter(`Average Weeks/Year` > "17") #17.3 weeks in 4 months
+threemonths <- opscompweek2[apply(opscompweek2 == 0, 1, sum) == 9, ] %>% filter(`Average Weeks/Year` > "13") #13.04 weeks in 3 months
+twomonths <- opscompweek2[apply(opscompweek2 == 0, 1, sum) == 10, ] %>% filter(`Average Weeks/Year` > "9") #8.69 weeks in 2 months
+onemonth <- opscompweek2[apply(opscompweek2 == 0, 1, sum) == 11, ] %>% filter(`Average Weeks/Year` > "4") #4.34 weeks in 1 month
 ```
