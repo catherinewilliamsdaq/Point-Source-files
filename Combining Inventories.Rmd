@@ -1,0 +1,121 @@
+---
+title: "Comparing Inventories"
+author: "Catherine Williams"
+date: "5/18/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+summary(cars)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r comparing inventory code}
+#oinv = old_inventory; ninv = new_inventory
+#if we don't hide_pct, then we will display the percent change
+#between the two inventories too.
+#if we tweak this function, excute from line 30 to update
+compare_inventories <-
+  function(oinv, ninv, hide_pct = FALSE) {
+    oinv <- oinv %>% rename(old_tpy = `Estimated Emissions (Tons)`)
+    ninv <- ninv %>% rename(new_tpy = `Estimated Emissions (Tons)`)
+   
+    #make sure I capture pollutants missing in the old inventory that are
+    #in the new inventory
+    leftjoincolumns <- c('Facility Identifier', 'Emission Unit Identifier', 'Process Identifier', 'Pollutant: Code')
+    missing_in_old_inventory <-
+      left_join(ninv, oinv, by = leftjoincolumns) %>%
+      filter(is.na(old_tpy)) #%>%
+      #select(FIPS, SCC, year, pollutant, old_tpy, new_tpy)
+    #now pull the main table we'll be working with and tack on the missing
+    #values
+    out_table <-
+      left_join(oinv, ninv, by = leftjoincolumns) %>%
+      rbind(missing_in_old_inventory)
+   
+    #if we want to show percentages, do this bit
+    #show percent changes in tpy
+    if (!hide_pct) {
+      out_table <- out_table %>%
+        #if any values are missing, or if we have to divide by 0, just do NA
+        mutate(pct_change = ifelse(
+          is.na(old_tpy) | is.na(new_tpy) |
+            old_tpy == 0,
+          NA,
+          (new_tpy - old_tpy) / old_tpy * 100
+        )) %>%
+        # if we went from 0 to 0, change from NA -> 0
+        mutate(pct_change = ifelse(old_tpy == 0 & new_tpy == 0,
+                                   0,
+                                   pct_change))
+    }
+    #if any values are missing, do NA, else, give TPY change.
+    out_table <- out_table %>%
+      mutate(tpy_change = ifelse(is.na(old_tpy) | is.na(new_tpy),
+                                 NA,
+                                 new_tpy - old_tpy))
+  }
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+```{r}
+library(tidyverse)
+library(writexl)
+options(scipen = 999)
+Holcim2017EU <- read_csv("G:/My Drive/2020 Inventory/QC/Holcim 10007/Emissions units 2017.csv")
+Holcim2020EU <- read_csv("G:/My Drive/2020 Inventory/QC/Holcim 10007/emissions units 2020.csv")
+Holcim2017select <- Holcim2017EU %>% select(c(EmissionUnitIdentifier, EmissionUnitDescription, PollutantCode, TotalEmissions))
+Holcim2020select <- Holcim2020EU %>% select(c(EmissionUnitIdentifier, EmissionUnitDescription, PollutantCode, TotalEmissions))
+```
+To compare entire year inventories, do "unique" for facility ID, and filter from 2017 and 2018 every facility ID that we see in 2019 (filter 2017, rbind to 2019)
+```{r}
+#Combining  2017, 2018, and 2019 inventories
+library(tidyverse)
+library(writexl)
+options(scipen = 999)
+#Read in all necessary previous yearly summary process emissions from SLEIS
+#Need to rerun 2017 once Windsor fixes 10007 Pollutant code 8.33 issue, 11599 shift
+ProcessEmissions2017 <- read_csv("G:/My Drive/2020 Inventory/QC/2017 Process Emissions.csv")
+ProcessEmissions2018 <- read_csv("G:/My Drive/2020 Inventory/QC/2018 process Emissions.csv")
+ProcessEmissions2019 <- read_csv("G:/My Drive/2020 Inventory/QC/2019 Process Emissions.csv")
+#Replace 2018 facility data in the 2017 file
+ProcessEmissions201718 <- ProcessEmissions2017 %>% filter(!`Facility Identifier` %in% unique(ProcessEmissions2018$`Facility Identifier`))
+#Remove unnecessary columns
+selectPE201718 <- ProcessEmissions201718 %>% select(`Reporting Year`:`Data Export Date`)
+#Add 2018 data to bottom of 2017 data
+CombinedPE201718 <- rbind(selectPE201718, ProcessEmissions2018)
+#Replace 2019 facility data in 2017/2018 combined file
+ProcessEmissions20171819 <- CombinedPE201718 %>% filter(!`Facility Identifier` %in% unique(ProcessEmissions2019$`Facility Identifier`))
+#Add 2019 data to bottom of 2017 data
+combinedPE20171819 <- rbind(ProcessEmissions20171819,ProcessEmissions2019) 
+#Select necessary columns
+Previousinventories <- combinedPE20171819 %>% select(`Facility Identifier`, `Emission Unit Identifier`, `Process Identifier`, `Pollutant: Code`, `Estimated Emissions (Tons)`)
+#Rename Previous inventory file to prep for combining function
+oinv <- Previousinventories
+```
+```{r}
+#Read in 2020 data
+library(tidyverse)
+library(writexl)
+options(scipen = 999)
+#Read in 2020 summary process emissions
+PE2020 <- read_csv("G:/My Drive/2020 Inventory/QC/2020 process emissions.csv")
+#Select necessary columns
+selectedPE2020 <- PE2020 %>% select(`Facility Identifier`, `Emission Unit Identifier`, `Process Identifier`, `Pollutant: Code`, `Estimated Emissions (Tons)`)
+#rename 2020 file to prep for combining function
+ninv <- selectedPE2020
+
+```
