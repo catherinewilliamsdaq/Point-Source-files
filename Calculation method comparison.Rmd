@@ -1,0 +1,64 @@
+---
+title: "Comparing _0 calculation methods"
+author: "Catherine Williams"
+date: "9/1/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+summary(cars)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+```{r}
+#Combining  2017, 2018, and 2019 inventories
+library(tidyverse)
+library(writexl)
+library(dplyr)
+options(scipen = 999)
+#Read in all necessary previous yearly summary process emissions from SLEIS
+ProcessEmissions2017 <- read_csv("G:/My Drive/2020 Inventory/QC/2017 Process Emissions.csv")
+ProcessEmissions2018 <- read_csv("G:/My Drive/2020 Inventory/QC/2018 process Emissions.csv")
+ProcessEmissions2019 <- read_csv("G:/My Drive/2020 Inventory/QC/2019 Process Emissions.csv")
+#Remove facilities from the 2017 file that are in the 2018 file
+#When you work on this next, facility 14219 is staying in for both 2017 and 2018
+ProcessEmissions201718 <- ProcessEmissions2017 %>% filter(!`Facility Identifier` %in% unique(ProcessEmissions2018$`Facility Identifier`))
+#Add 2018 data to bottom of 2017 data
+CombinedPE201718 <- rbind(ProcessEmissions201718, ProcessEmissions2018)
+#Remove facilities from combinedPE201718 file that are in the 2019 file
+ProcessEmissions20171819 <- CombinedPE201718 %>% filter(!`Facility Identifier` %in% unique(ProcessEmissions2019$`Facility Identifier`))
+#Add 2019 data to bottom of 2017, 2018 data
+combinedPE20171819 <- rbind(ProcessEmissions20171819,ProcessEmissions2019) 
+#Select necessary columns
+calcmethodpre <- combinedPE20171819 %>% select(`Reporting Year`, `Facility Identifier`, `Emission Unit Identifier`, `Process Identifier`, `Throughput`:`Throughput Unit of Measure: Code`, `Pollutant: Code`, `Calculation Method: Code`, `Estimated Emissions (Tons)`)
+#Import Process emissions for 2020
+ProcessEmissions2020 <- read_csv("2020 process emissions.csv")
+#Select necessary columns
+calcmethodcurrent <- ProcessEmissions2020 %>% select(`Reporting Year`, `Facility Identifier`, `Emission Unit Identifier`, `Process Identifier`, `Throughput`:`Throughput Unit of Measure: Code`, `Pollutant: Code`:`Pollutant: Description`, `Calculation Method: Code`, `Estimated Emissions (Tons)`)
+#Join Pre and current inventories by Facility ID, Emission Unit, and Process ID
+combinedcalcmeth <- left_join(calcmethodcurrent, calcmethodpre, by = c("Facility Identifier", "Emission Unit Identifier", "Process Identifier", "Pollutant: Code"))
+#Filter for calc methods that end with zero, where calculation methods match between years, and filter out 0 throughput
+calcmethcomp <- combinedcalcmeth %>% filter(grepl("_0", `Calculation Method: Code.x`)) %>% filter(`Calculation Method: Code.x` == `Calculation Method: Code.y`) %>% filter(`Estimated Emissions (Tons).x` == `Estimated Emissions (Tons).y`) %>% filter(`Throughput.x` > "0") 
+#Filter out rows where both year total tons = 0
+#Took this step out because we already took out 0 throughput entries. If facility is reporting 0 tons for a non-0 throughput, it is probably worth checking to see if the tonnage should be more than 0.
+#finalcalc <- calcmethcomp %>% filter(`Estimated Emissions (Tons).x` != "0" & `Estimated Emissions (Tons).y` != "0")
+write_xlsx(calcmethcomp, "_0 Calculation method comparison.csv")
+```

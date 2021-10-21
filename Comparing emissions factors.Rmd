@@ -1,0 +1,54 @@
+---
+title: "Emission Factor comparisons"
+author: "Catherine Williams"
+date: "9/2/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+summary(cars)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+```{r}
+#Load read_csv library, tidyverse
+library(tidyverse)
+library(dplyr)
+library(writexl)
+#Read in current process emissions file
+PE2020 <- read_csv("2020 process emissions.csv")
+#Convert Caluculation method column from character to factor
+PE2020$`Calculation Method: Code` <- as.factor(PE2020$`Calculation Method: Code`)
+#Select columns, filter out 8_1 & 8_2 and any _0 calculation methods, all calc. methods beginning with 4, and 0 throughputs
+PE2020refined <- PE2020 %>% select(`Facility Identifier`, `Control(s)`:`SCC`, `Throughput`, `Pollutant: Code`:`Pollutant: Description`, `Calculation Method: Code`, `Emission Factor (Lbs/Unit)`:`Emission Factor Denominator: Code`, `Emissions Comment`) %>% filter(`Calculation Method: Code` != "8_2") %>% filter(`Calculation Method: Code` != "8_1") %>% filter(!grepl("_0", `Calculation Method: Code`)) %>% filter(!grepl("4_", `Calculation Method: Code`)) %>% filter(`Throughput` > "0")
+#read in webfire table. NOTE: when this file is read in, 0 values in "Converted FACTOR" convert to na. 
+webfire <- read_csv("WebFIRE UDAQ SLEIS.csv", )
+#testweb <- webfire %>% filter(`Converted FACTOR` != is.na(`Converted FACTOR`))
+#select columns in webfire table, rename columns to prepare for left_join
+webfirerefined <- webfire %>% select(`UDAQ ID`, `WebFIRE SCC`, `NEI_POLLUTANT_CODE`, `CONTROL`, `Converted FACTOR`, `UNIT`, `MEASURE`) %>% rename(`Facility Identifier` = `UDAQ ID`, `Control(s)` = `CONTROL`, `SCC` = `WebFIRE SCC`, `Pollutant: Code` = `NEI_POLLUTANT_CODE`) %>% filter(`Converted FACTOR` != is.na(`Converted FACTOR`))
+#join PE2020refined to webfirerefined by SCC code and pollutant code, select columns, filter out NAs in Converted Factor, 
+compareEF <- left_join(PE2020refined, webfirerefined, by = c("SCC", "Pollutant: Code")) %>% select(`Facility Identifier.x`, `Emission Unit Identifier`:`Process Identifier`, `Pollutant: Code`:`Emission Factor Denominator: Code`, `Control(s).x`, `Emissions Comment`, `Converted FACTOR`:`MEASURE`, `Control(s).y`) %>% filter(`Converted FACTOR` != is.na(`Converted FACTOR`))
+#Create new column to subtract Emission Factor from Converted Factor
+compareEF$EFdiff <- (compareEF$`Converted FACTOR` - compareEF$`Emission Factor (Lbs/Unit)`)
+#Show only positive values for EFdiff (meaning those values where the webfire EF is higher than that reported in SLEIS)
+compareEFfinal <- compareEF %>% filter(`EFdiff` > "0") %>% mutate(`MEASURE` = recode(`MEASURE`, "Million Cubic Feet" = "E6FT3", "Tons" = "TON", "Hour" = "HR", "Acre-Years" = "ACRE-YR", "Million Btus" = "E6BTU", "1000 Gallons" = "E3GAL", "Million Dry Standard Cubic Feet" = "E6FT3S", "Horsepower-Hours" = "HP-HR", "EACH" = "Each", "SCFM-Year" = "FT3S/M-Y", "Gallons" = "GAL", "Cubic Yards" = "YD3", "1000 Pounds" = "E3LB")) %>% filter(`Emission Factor Denominator: Code` == MEASURE)
+write_xlsx(compareEFfinal, "Emission factor comparison.csv")
+```
