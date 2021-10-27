@@ -66,4 +66,7 @@ fourmonths <- opscompweek2[apply(opscompweek2 == 0, 1, sum) == 8, ] %>% filter(`
 threemonths <- opscompweek2[apply(opscompweek2 == 0, 1, sum) == 9, ] %>% filter(`Average Weeks/Year` > "13") #13.04 weeks in 3 months
 twomonths <- opscompweek2[apply(opscompweek2 == 0, 1, sum) == 10, ] %>% filter(`Average Weeks/Year` > "9") #8.69 weeks in 2 months
 onemonth <- opscompweek2[apply(opscompweek2 == 0, 1, sum) == 11, ] %>% filter(`Average Weeks/Year` > "4") #4.34 weeks in 1 month
+ 
+#rbind months into one dataframe
+opscompweekfinal <- rbind(elevenmonths, tenmonths, ninemonths, eightmonths, sevenmonths, sixmonths, fivemonths, fourmonths, threemonths, twomonths, onemonth)
 ```
