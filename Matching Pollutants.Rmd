@@ -1,0 +1,54 @@
+---
+title: "Matching Pollutants"
+author: "Sally Lloyd"
+date: "10/27/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+summary(cars)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+```{r}
+#load libraries
+library(tidyverse)
+library(dplyr)
+
+#read in process emissions and webfire table
+PE2020 <- read_csv("2020 process emissions.csv")
+webfire <- read_csv("WebFIRE_for_UDAQ_SLEIS.csv")
+
+#select columns and filter out NAs in webfire table
+PE2020s <- PE2020 %>% select(`Facility Identifier`:`Facility Name`, `Emission Unit Identifier`,`Process Identifier`,`SCC`,`Pollutant: Description`)
+webfires <- webfire %>% select(`WebFIRE SCC`, `POLLUTANT`) %>% filter(`WebFIRE SCC` != is.na(`WebFIRE SCC`))
+
+#filter for unique pollutants (only one of each pollutant per SCC) and rename columns to match PE2020s
+webfireselect <- webfires %>% distinct()  %>% rename(`SCC` = `WebFIRE SCC`, `Pollutant: Description` = `POLLUTANT`)
+
+#convert SCC column from double to character
+webfireselect$`SCC` <- as.character(webfireselect$`SCC`)
+
+#left_join PE2020s and webfireselect
+# problem: ultimately want seven columns, including one SCC and two pollutant description columns. The line below gives the same pollutant x for each different pollutant y. How to get the distinct but matching pollutant x and y, while also including any NAs from y? Do the values/pollutant names need to be changed in PE2020s to match webfireselect names?
+matchpollutants <- left_join(PE2020s, webfireselect, by = "SCC", "Pollutant: Description") #%>% filter(`Pollutant: Description.x` == `Pollutant: Description.y`)
+```
+
